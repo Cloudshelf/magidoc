@@ -98,4 +98,8 @@ export default {
       })
     }),
   ),
+  HIDDEN_ENTITIES: createVariable<Array<string | undefined>>(
+    'HIDDEN_ENTITIES',
+    arrayConverter((zod) => zod.string()),
+  ),
 }

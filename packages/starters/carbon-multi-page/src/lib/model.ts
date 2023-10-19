@@ -29,6 +29,7 @@ import type { PageTree } from '@magidoc/plugin-starter-common'
 
 export const schema: GraphQLSchema = parseSchema()
 
+const hiddenEntities = getOrDefault(templates.HIDDEN_ENTITIES, [])
 const allowedDirectives = getOrDefault(templates.DIRECTIVES, [])
 const queriesByName = toIgnoreCase(schema.getQueryType()?.getFields())
 const mutationsByName = toIgnoreCase(schema.getMutationType()?.getFields())
@@ -91,11 +92,41 @@ function createWebsiteContent(
   title: string,
   type: Maybe<GraphQLObjectType<unknown, unknown>>,
 ): PageTree | null {
+  //TODO: remove hidden entities here?
   return createWebsiteContentFromFields(title, getSortedRootFields(type))
 }
 
 function getSortedRootFields(type: Maybe<GraphQLObjectType<unknown, unknown>>) {
-  return _.sortBy(type?.getFields() || {}, (item) => item.name)
+  //Get a list of the fields available on this gql type
+  const fields = type?.getFields() || {}
+  //Get a list of hiddenEntities, and remove any null/undefined values <- this is to make typescript happy
+  const compactedHiddenEntities = _.compact(hiddenEntities)
+
+  //Now we need to filter out any fields that are in compactedHiddenEntities
+  const filteredFields = _.filter(fields, (field) => {
+    //get the field name from the gql type
+    const fieldName = field.name
+
+    //Check if the field name is explicitly defined in hiddenEntities
+    if (_.includes(compactedHiddenEntities, fieldName)) {
+      return false
+    }
+
+    //now check if it matches any regex in hiddenEntities
+    const regexMatch = _.find(compactedHiddenEntities, (regex) => {
+      return fieldName.match(regex)
+    })
+
+    if (regexMatch) {
+      return false
+    }
+
+    return true
+  })
+
+  return _.sortBy(filteredFields, (item) => item.name)
+
+  // return _.sortBy(type?.getFields() || {}, (item) => item.name)
 }
 
 function createWebsiteContentFromFields(
